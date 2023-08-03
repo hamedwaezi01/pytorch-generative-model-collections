@@ -1,10 +1,70 @@
-import os, gzip, torch
+import os, gzip, torch, csv
 import torch.nn as nn
 import numpy as np
-import scipy.misc
+from PIL import Image
 import imageio
 import matplotlib.pyplot as plt
 from torchvision import datasets, transforms
+from torch.utils.data import Dataset
+
+class AugmentedDataset(Dataset):
+    
+    def __init__(self, data=None, targets=None, original_set=None, csv_file=None, transform=None):
+        super().__init__()
+        self.transform = transform
+        if csv_file is None or len(csv_file) == 0:
+            self.data = torch.cat((original_set.data, data))
+            self.targets = torch.cat((original_set.targets ,targets))
+        elif data is not None or targets is not None or original_set is not None:
+            raise ValueError()
+        else:
+            targets = []
+            data = []
+            with open(csv_file) as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    targets.append(row[0])
+                    data.append(row[1:])
+            self.data = torch.tensor(data)
+            self.targets = torch.tensor(targets)
+
+    def __getitem__(self, index):
+        image = self.data[index]
+        label = self.targets[index]
+        if self.transform is not None:
+            image = self.transform(image)
+        
+        return image, label
+
+    def __len__(self):
+        return self.data.size(0)
+
+    def save(self, path):
+        data = self.data.reshape(-1, self.data.shape[1]*self.data.shape[2])
+        with open(path, "w") as f:
+            writer = csv.writer(f)
+            for index, image in enumerate(data):
+                writer.writerow((int(self.targets[index]), image))
+
+
+def imshow_normalized(tensor):
+    plt.imshow(((tensor + 1) * (255.0/2)).cpu().squeeze(), interpolation='nearest')
+
+def generate_augmentation(model, label, count, batch_size=64):
+    labels = torch.tensor([label] * batch_size).cuda()
+    data = torch.tensor([]).cuda()
+    model.G.eval()
+    for i in range((count//batch_size) + (count%batch_size>0)):
+        current_size = batch_size
+        if i == count // batch_size:
+            current_size = count%batch_size
+        y_ = torch.zeros((current_size, model.class_num)).scatter_(1, labels[:current_size].type(torch.LongTensor).unsqueeze(1), 1).cuda()
+        with torch.no_grad():
+            z_ = torch.rand((current_size, model.z_dim)).cuda()
+            new = model.G(z_, y_)
+            data = torch.cat([data, new])
+
+    return data
 
 def load_mnist(dataset):
     data_dir = os.path.join("./data", dataset)
@@ -78,7 +138,9 @@ def save_images(images, size, image_path):
 
 def imsave(images, size, path):
     image = np.squeeze(merge(images, size))
-    return scipy.misc.imsave(path, image)
+    image = Image.fromarray(image * 255)
+    return image.convert("RGB").save(path) if images.shape[-1] == 1 else image.save(path)
+    # return imageio.imwrite(path, image)
 
 def merge(images, size):
     h, w = images.shape[1], images.shape[2]
@@ -105,7 +167,7 @@ def generate_animation(path, num):
     for e in range(num):
         img_name = path + '_epoch%03d' % (e+1) + '.png'
         images.append(imageio.imread(img_name))
-    imageio.mimsave(path + '_generate_animation.gif', images, fps=5)
+    imageio.mimsave(path + '_generate_animation.gif', images, duration=200)
 
 def loss_plot(hist, path = 'Train_hist.png', model_name = ''):
     x = range(len(hist['D_loss']))

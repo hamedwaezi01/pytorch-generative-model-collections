@@ -93,7 +93,7 @@ class ACGAN(object):
         self.model_name = args.gan_type
         self.input_size = args.input_size
         self.z_dim = 62
-        self.class_num = 10
+        self.class_num = args.class_num
         self.sample_num = self.class_num ** 2
 
         # load dataset
@@ -101,8 +101,8 @@ class ACGAN(object):
         data = self.data_loader.__iter__().__next__()[0]
 
         # networks init
-        self.G = generator(input_dim=self.z_dim, output_dim=data.shape[1], input_size=self.input_size)
-        self.D = discriminator(input_dim=data.shape[1], output_dim=1, input_size=self.input_size)
+        self.G = generator(input_dim=self.z_dim, output_dim=data.shape[1], input_size=self.input_size, class_num=self.class_num)
+        self.D = discriminator(input_dim=data.shape[1], output_dim=1, input_size=self.input_size, class_num=self.class_num)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
         self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
 
