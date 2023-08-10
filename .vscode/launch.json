@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Run model test | run",
+            "type": "python",
+            "request": "launch",
+            "program": "D:\\pytorch-generative-model-collections\\main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["--gan_type CGAN --dataset mnist --gan_type mnist --epoch 10 --batch_size 64"],
+            // "args": ["train", "--log"],
+            "cwd": "D:\\pytorch-generative-model-collections\\"
+        }
+    ]
+}
